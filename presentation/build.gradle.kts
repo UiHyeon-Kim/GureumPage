@@ -43,8 +43,6 @@ android {
         buildConfigField ("String", "NAVER_CLIENT_SECRET", "\"${localProperties["NAVER_CLIENT_SECRET"] ?: ""}\"")
         manifestPlaceholders["NAVER_CLIENT_SECRET"] = localProperties["NAVER_CLIENT_SECRET"] ?: ""
         buildConfigField ("String", "VERSION_NAME", "\"${versionName}\"")
-
-
     }
 
     buildTypes {
@@ -66,6 +64,7 @@ android {
     buildFeatures {
         viewBinding = true
         compose = true
+        buildConfig = true
     }
 }
 
@@ -110,6 +109,7 @@ dependencies {
     implementation(libs.androidx.dynamicanimation)
     implementation(libs.androidx.ui.viewbinding)
 
+    // Coil
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
 
@@ -119,6 +119,7 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
     implementation("com.airbnb.android:lottie-compose:5.2.0")
 
+    // Firebase 관련
     implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
