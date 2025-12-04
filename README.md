@@ -1,16 +1,18 @@
-<img width="1440" height="510" alt="Surface Pro 8 - 6" src="https://github.com/user-attachments/assets/e4633938-9b03-49aa-93e5-894f3ab9a9ac" />
-
 # ☁️구름한장(GureumPage)
-> 전자책이나 종이책 상관없이 독서를 하며 기록을 남기고
+
+> 전자책이나 종이책 상관없이 독서 기록을 남기고
 <br>필사를 작성하거나 마인드맵으로 생각을 구조화 할 수 있는 독서 기록 앱
+
+<img width="1440" height="510" alt="Surface Pro 8 - 6" src="https://github.com/user-attachments/assets/e4633938-9b03-49aa-93e5-894f3ab9a9ac" />
 
 <br>
 
 # 📖개요
+
 > 구름한장은 독서 기록을 더 깊이, 더 오래 남기고 습관 형성을 도와주기 위해 개발한 앱입니다.
-<br>전자책이 많아진 요즘 플로팅 윈도우로 편하게 독서 기록을 남길 수 있습니다.
-<br>독서 기록을 더 오래, 마인드맵과 필사로 더 깊이 남기고,
-<br>알림과 통계로 꾸준한 습관 형성을 도와줄 수 있도록 설계한 서비스입니다.
+<br>전자책이 많아진 요즘 환경에 맞춘 **플로팅 윈도우 타이머**
+<br>독서 기록을 더 오래, **마인드맵**과 **필사**로 더 깊이 남기고,
+<br>**알림**과 **통계**로 꾸준한 습관 형성을 도와줄 수 있도록 설계한 서비스입니다.
 
 **🗓️ 기간**: 2025.07.28 ~ 2025.09.02
 
@@ -25,13 +27,13 @@
 
 **🏆 수상**: LIKELION Android Bootcamp 최우수 프로젝트
 
-**🔗 GitHub**: [https://github.com/LIKELION-Android-Bootcamp-4th/GureumPage](https://github.com/LIKELION-Android-Bootcamp-4th/FinalProject-GureumPage-HIHIHIHI)
+**🔗 Team GitHub**: [https://github.com/LIKELION-Android-Bootcamp-4th/GureumPage](https://github.com/LIKELION-Android-Bootcamp-4th/FinalProject-GureumPage-HIHIHIHI)
 
 **🔗 Play Store**: [https://play.google.com/store/apps/gureumpage](https://play.google.com/store/apps/details?id=com.hihihihi.gureumpage)
 
 <br>
 
-# 📱주요 기능
+# 📱주요 기능 
 
 | 섹션 | 주요 기능 |
 |---|---|
@@ -39,29 +41,7 @@
 | 홈 | • 현재 읽는 중 책 목록과 정보 제공<br>• 하루 독서 목표 설정 & 도넛 차트로 달성도 확인<br>• 작성한 필사 문장 랜덤 노출 |
 | 도서 검색 | • 키워드 검색: 제목 / 저자 / 출판사 / ISBN<br>• 결과: 표지·제목·저자·페이지 수 등 상세 정보 표시 |
 | 서재 | • 상태별 목록 관리: 읽을 책 / 읽는 중 / 읽은 책<br>• 항목 클릭 시 책 상세 화면으로 이동 |
-| 책 상세 화면 | • 독서 진행도·독서 기간·누적 시간·하루 평균 시간<br>• 기록: 타이머 또는 직접 기입<br>• 책당 1개의 마인드맵 생성·관리<br> |
-| 독서 타이머 | • 책 상세/위젯에서 진입, 시작·정지·재개<br>• 플로팅 윈도우 제공(드래그/스와이프 조절, 다른 앱 위 동작) |
-| 인상 깊은 문장(필사) | • 타이머 중 또는 책 상세에서 작성<br>• 앱 내 전체 필사 목록에서 도서 구분 없이 열람 |
-| 마인드맵 | • 책별 1개 마인드맵 생성<br>• 아이디어/개념/인물/사건 흐름 시각화<br>• 노드 추가·삭제·이동·편집<br>• 스냅샷 기반 undo/redo 등 |
-| 통계 | • 읽은 책 장르: 도넛 차트<br>• 시간대/요일별 읽은 페이지: 바/라인 차트<br>• 주간·월간·연간 필터 |
-| 마이페이지 | • 닉네임 변경<br>• 총 독서 통계 요약<br>• 라이트/다크 테마 전환<br>• 로그아웃, 탈퇴 |
-| 온보딩 | • 닉네임 설정<br>• 앱 사용 목적 조사 & 앱 소개<br>• 테마(라이트/다크) 선택 |
-
-<br>
-
-# 🛠️기술 스택
-| 카테고리 | 기술 |
-| ----- | ----- |
-| **언어/빌드** | Kotlin, Gradle(KTS) |
-| **UI/UX** | Jetpack Compose, Glance |
-| **아키텍처** | MVVM + Clean Architecture, Multi Module |
-| **DI** | Hilt |
-| **비동기/데이터** | Coroutine, Flow, DataStore |
-| **백엔드** | Firebase Auth, Functions, Firestore, FCM |
-| **API** | 책 검색 - 알라딘 API |
-| **네트워크** | Retrofit2, OkHttp3, Gson |
-| **이미지/애니메이션** | Coil, Lottie |
-| **기타** | MPAndroidChart, kizitonwose/Calendar, android-thinkmap-treeview |
+| 책 상세 화면 | •용
 
 <br>
 
@@ -85,7 +65,25 @@
 
 <br>
 
-# 주요 화면 스크린샷
+# 트러블슈팅
+
+<details>
+    <summary>마인드맵 라이브러리 선택 & Undo/Redo 불안정 문제</summary>
+    내용내용
+</details> 
+
+<details>
+    <summary>OAuth 로그인 릴리즈 빌드 오류</summary>
+</details> 
+
+<details>
+    <summary>시간 선택 커스텀 피커 무한 롤링 문제</summary>
+</details> 
+
+<br>
+
+# 📷주요 화면 스크린샷
+
 <table>
   <tr>
     <td align="center">
@@ -135,11 +133,22 @@
 
 <br>
 
-## 시연 영상
+# 📹시연 영상
+
 <p align="center">
   <a href="https://www.youtube.com/watch?v=mC706rSxEHk">
     <img src="https://img.youtube.com/vi/2eFPaFB1gIA/0.jpg" alt="[시연 영상](https://youtu.be/mC706rSxEHk)" width="800">
   </a>
 </p>
+
+<br>
+
+# 🚀향후 개선 계획
+
+- 테스트 코드 작성 및 UI 테스트 도입
+- Firebase Analytics, Performance 추가
+- 마인드맵 AI 도입 - 자동 마인드맵 생성 기능
+- 위젯 기능 확장
+- 성능 측정 후 개선
 
 <br>
