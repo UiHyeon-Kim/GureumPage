@@ -49,7 +49,6 @@
 | 마이페이지 | • 닉네임 변경<br>• 총 독서 통계 요약<br>• 라이트/다크 테마 전환<br>• 로그아웃, 탈퇴 |
 | 온보딩 | • 닉네임 설정<br>• 앱 사용 목적 조사 & 앱 소개<br>• 테마(라이트/다크) 선택 |
 
-# 
 <br>
 
 # 🛠️기술 스택
@@ -71,6 +70,28 @@
 
 # 🔍기술 선택 이유
 
+### Clean Architecture + Multi Module
+- 화면 수와 기능이 많고, 2차 개발과 기능 추가를 고려해 유지보수성과 확장성이 좋은 CA 도입
+- Domain 계층에서 비즈니스 로직을 관리할 수 있도록 설계
+- 모듈 단위 나누어 의존성 및 빌드 시간 감소 효과
+
+### Hilt
+- CA + Multi Module 로 모듈 간의 의존성 주입이 많아져 모듈별 DI를 분리하고 필요한 객체를 안정적으로 주입
+- Firebase, Retrofit, Repository 처럼 Singleton 객체가 많아 앱 전체에 쉽게 재사용
+- 도서 검색 API를 변경하거나 Firebase를 Supabase로 변경이 필요할 때 DI 모듈만 수정  
+
+### Firebase Auth, Firestore
+- 백엔드 인력이 없는 팀에서 사용하기 좋음
+- OAuth 로그인을 위해 Functions에서 Custom Token 발급 구조 적용
+- 기록, 통계 등 Firestore의 실시간 읽기/쓰기 안정적임
+
+### Glance 위젯
+- Compose UI와 비슷한 선언형 UI로 위젯 구현 가능
+- 앱 사용자의 독서 접근성 향상
+
+### Calendar, MPAndroidChart 등 외부 라이브러리
+- 직접 제작하는 데 시간이 많이드는 달력, 차트 등을 효율적으로 구현
+- 커스터마이징 가능한 라이브러리만 선별해 적용
 
 <br>
 
@@ -94,20 +115,65 @@
 
 <br>
 
-# 트러블슈팅
+# 🎯트러블슈팅
 
-<details>
-    <summary>마인드맵 라이브러리 선택 & Undo/Redo 불안정 문제</summary>
-    내용내용
-</details> 
+### 마인드맵 라이브러리 선택 & Undo/Redo 불안정 문제
 
-<details>
-    <summary>OAuth 로그인 릴리즈 빌드 오류</summary>
-</details> 
+```mermaid
+flowchart TD
 
-<details>
-    <summary>시간 선택 커스텀 피커 무한 롤링 문제</summary>
-</details> 
+subgraph 기존 - 노드 변경 액션 기반
+A1[노드 변경] --> B1[부분 변경 저장]
+B1 --> C1[잘못된 포인터 반영]
+C1 --> D1[Undo 시 구조 손상]
+end
+```
+
+```mermaid
+flowchart TD
+
+subgraph 개선 - 스냅샷 기반
+A2[노드 변경] --> B2[전체 트리 JSON 스냅샷]
+B2 --> C2[스택 저장]
+C2 --> D2[Undo 시 전체 복구]
+end
+```
+
+- Android에서 사용할 수 있는 라이브러리가 적고, 선택한 라이브러리는 미완성이라 기능 제약이 많았음
+- 노드 CRUD 스택 기반 Undo/Redo 기능은 참조 충돌로 구조가 망가지거나 NPE 등의 오류가 많았음
+- 트리 전체를 저장하는 스냅샷 기반 Undo/Redo 기능으로 변경해 안정성을 높임
+
+[🔗 자세히 보기](https://www.notion.so/2725686b19438051953dfe855c97800c?source=copy_link)
+
+---
+
+### OAuth 로그인 릴리즈 빌드 오류
+
+- 출시 심사 과정에서 카카오, 구글 로그인이 동작하지 않는 문제 발생
+- 원인은 Firebase 와 Kakao Developers 에 릴리즈 서명키 SHA-1 키 등록하지 않음
+- 서명키를 각각의 방식으로 처리해 등록해 해결
+  
+[🔗 자세히 보기](https://www.notion.so/2725686b194380d98c84cd1ebea4a0be?source=copy_link)
+
+---
+
+### 시간 선택 커스텀 피커 무한 롤링 문제
+
+```mermaid
+flowchart LR
+
+A[Recomposition 발생] --> B[initialFirstVisibleItemIndex 재적용]
+B --> C[현재 스크롤 인덱스와 초기 인덱스 충돌]
+C --> D[리스트 위치 재계산 반복]
+D --> E[Picker가 계속 회전함무한 롤링]
+
+```
+
+- 커스텀 시간 피커가 특정 상황에서 계속 회전해 멈추지 않는 문제 발생
+- LazyListState 초기 인덱스가 recomposition 마다 재계산해 적용되던 것
+- 선택된 시간 상태를 따로 만들어 초기값과 현재값이 섞이지 않도록 해 해결
+ 
+[🔗 자세히 보기](https://www.notion.so/2bf5686b194380b7b516e9c8b1b677ca?source=copy_link)
 
 <br>
 
