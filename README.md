@@ -117,7 +117,7 @@
 
 # 🎯트러블슈팅
 
-### 마인드맵 라이브러리 선택 & Undo/Redo 불안정 문제
+### 1. 마인드맵 라이브러리 선택 & Undo/Redo 불안정 문제
 
 ```mermaid
 flowchart TD
@@ -147,7 +147,7 @@ end
 
 ---
 
-### OAuth 로그인 릴리즈 빌드 오류
+### 2. OAuth 로그인 릴리즈 빌드 오류
 
 - 출시 심사 과정에서 카카오, 구글 로그인이 동작하지 않는 문제 발생
 - 원인은 Firebase 와 Kakao Developers 에 릴리즈 서명키 SHA-1 키 등록하지 않음
@@ -157,7 +157,7 @@ end
 
 ---
 
-### 시간 선택 커스텀 피커 무한 롤링 문제
+### 3. 시간 선택 커스텀 피커 무한 롤링 문제
 
 ```mermaid
 flowchart LR
@@ -166,6 +166,16 @@ A[Recomposition 발생] --> B[initialFirstVisibleItemIndex 재적용]
 B --> C[현재 스크롤 인덱스와 초기 인덱스 충돌]
 C --> D[리스트 위치 재계산 반복]
 D --> E[Picker가 계속 회전함무한 롤링]
+
+```
+
+```mermaid
+flowchart LR
+
+A[PickerState.selectedIndex 추가] --> B[스크롤 이벤트 감지]
+B --> C[selectedIndex & selectedItem 갱신]
+C --> D[UI는 selectedIndex만 기준으로 표현]
+D --> E[Picker 안정적으로 멈춤]
 
 ```
 
