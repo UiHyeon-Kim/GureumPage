@@ -4,15 +4,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import io.github.hanhyo.composemindmap.layout.MindMapLayoutNode
 import io.github.hanhyo.composemindmap.model.MindMapNode
 import io.github.hanhyo.composemindmap.model.MindMapStyle
 
@@ -119,43 +116,3 @@ object DefaultMindMapCanvasNodeRenderer : MindMapCanvasNodeRenderer {
     }
 }
 
-internal data class PlusButtonArea(val nodeId: String, val center: Offset, val radius: Float)
-
-internal fun DrawScope.drawDropTargetHighlight(layouted: MindMapLayoutNode, style: MindMapStyle) {
-    drawRoundRect(
-        color = style.dropTargetColor,
-        topLeft = layouted.offset,
-        size = layouted.size,
-        cornerRadius = CornerRadius(style.cornerRadius.toPx()),
-        style = Stroke(
-            width = style.dropTargetStrokeWidth.toPx(),
-            pathEffect = PathEffect.dashPathEffect(
-                floatArrayOf(style.dropTargetDashLength.toPx(), style.dropTargetDashGap.toPx()),
-            ),
-        ),
-    )
-}
-
-internal fun DrawScope.drawPlusButton(
-    layouted: MindMapLayoutNode,
-    textMeasurer: TextMeasurer,
-    style: MindMapStyle,
-): PlusButtonArea {
-    val radius = style.addButtonRadius.toPx()
-    val cx = layouted.offset.x + layouted.size.width / 2f
-    val cy = layouted.offset.y + layouted.size.height + radius + style.addButtonSpacing.toPx()
-    drawCircle(color = style.addButtonColor, radius = radius, center = Offset(cx, cy))
-    val plusResult = textMeasurer.measure(
-        text = "+",
-        style = style.addButtonTextStyle.copy(textAlign = TextAlign.Center),
-    )
-    drawText(
-        textLayoutResult = plusResult,
-        topLeft = Offset(cx - plusResult.size.width / 2f, cy - plusResult.size.height / 2f),
-    )
-    return PlusButtonArea(
-        nodeId = layouted.node.id,
-        center = Offset(cx, cy),
-        radius = radius + style.addButtonTouchPadding.toPx(),
-    )
-}

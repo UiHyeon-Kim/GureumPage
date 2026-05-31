@@ -58,6 +58,9 @@ fun MindMapCanvas(
     nodeSize: (MindMapNode) -> DpSize = { style.defaultNodeSize },
     canvasNodeRenderer: MindMapCanvasNodeRenderer = DefaultMindMapCanvasNodeRenderer,
     edgeRenderer: MindMapEdgeRenderer = CurvedMindMapEdgeRenderer,
+    editPolicy: MindMapEditPolicy = DefaultMindMapEditPolicy,
+    addChildActionLayout: MindMapAddChildActionLayout = DefaultMindMapAddChildActionLayout,
+    editDecorationRenderer: MindMapEditDecorationRenderer? = null,
     nodeContent: (@Composable (MindMapNode, MindMapNodeVisualState) -> Unit)? = null,
     onValidationError: (MindMapValidationResult.Invalid) -> Unit = {},
     onNodeClick: (nodeId: String) -> Unit = {},
@@ -77,6 +80,9 @@ fun MindMapCanvas(
     }
     val layoutedNodes = layoutResult.nodes
     val textMeasurer = rememberTextMeasurer()
+    val decorationRenderer = remember(editDecorationRenderer, textMeasurer) {
+        editDecorationRenderer ?: DefaultMindMapEditDecorationRenderer(textMeasurer)
+    }
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     var initiallyCentered by remember { mutableStateOf(false) }
     var centeredLayoutEngine by remember { mutableStateOf<MindMapLayoutEngine?>(null) }
@@ -120,17 +126,19 @@ fun MindMapCanvas(
             .fillMaxSize()
             .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .transformable(transformableState)
-            .pointerInput(layoutedNodes, editMode, selectedNodeId, behavior) {
+            .pointerInput(layoutedNodes, editMode, selectedNodeId, behavior, editPolicy) {
                 val touchSlop = viewConfiguration.touchSlop
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val localStart = (down.position - state.offset) / state.scale
-                    val plusAreas = if (editMode && behavior.addChildButtonsVisible) {
-                        layoutedNodes.map { it.plusButtonArea(style, density.density) }
+                    val addChildActions = if (editMode && behavior.addChildButtonsVisible) {
+                        layoutedNodes
+                            .filter { editPolicy.canAddChild(it.node) }
+                            .map { addChildActionLayout.layout(it, style, density) }
                     } else {
                         emptyList()
                     }
-                    val hitPlus = plusAreas.firstOrNull { it.contains(localStart) }
+                    val hitAction = addChildActions.firstOrNull { it.hitTest(localStart) }
                     val hitNode = layoutedNodes.firstOrNull { it.contains(localStart) }
                     var dragging = false
                     var longPressed = false
@@ -165,14 +173,16 @@ fun MindMapCanvas(
 
                         if (
                             behavior.nodeDraggingEnabled && editMode && hitNode != null &&
-                            hitNode.node.parentId != null && hitNode.node.id == selectedNodeId
+                            editPolicy.canDrag(hitNode.node) && hitNode.node.id == selectedNodeId
                         ) {
                             val localPos = (change.position - state.offset) / state.scale
                             val dropTarget = layoutedNodes.firstOrNull {
-                                it.node.id != hitNode.node.id && it.contains(localPos)
+                                it.node.id != hitNode.node.id &&
+                                    it.contains(localPos) &&
+                                    editPolicy.canDrop(hitNode.node, it.node)
                             }
                             state.dragging = NodeDragState(hitNode.node.id, change.position, dropTarget?.node?.id)
-                        } else if (behavior.panEnabled && hitNode == null && hitPlus == null) {
+                        } else if (behavior.panEnabled && hitNode == null && hitAction == null) {
                             state.offset += delta
                         }
                         change.consume()
@@ -184,7 +194,7 @@ fun MindMapCanvas(
                         state.dragging = null
                     } else if (!dragging && !longPressed) {
                         when {
-                            hitPlus != null -> onAddChildClick(hitPlus.nodeId)
+                            hitAction != null -> onAddChildClick(hitAction.nodeId)
                             hitNode != null -> onNodeClick(hitNode.node.id)
                             else -> onCanvasClick()
                         }
@@ -207,8 +217,13 @@ fun MindMapCanvas(
                             draw(layouted.node, layouted.offset, layouted.size, visualState, style, textMeasurer)
                         }
                     }
-                    if (visualState.isDropTarget) drawDropTargetHighlight(layouted, style)
-                    if (editMode && behavior.addChildButtonsVisible) drawPlusButton(layouted, textMeasurer, style)
+                    if (visualState.isDropTarget) {
+                        with(decorationRenderer) { drawDropTarget(layouted, style) }
+                    }
+                    if (editMode && behavior.addChildButtonsVisible && editPolicy.canAddChild(layouted.node)) {
+                        val action = addChildActionLayout.layout(layouted, style, density)
+                        with(decorationRenderer) { drawAddChildAction(action, style) }
+                    }
                 }
                 val dragState = state.dragging
                 val dragged = layoutedNodes.firstOrNull { it.node.id == dragState?.nodeId }
@@ -292,15 +307,8 @@ private fun MindMapLayoutNode.visualState(
 private fun MindMapLayoutNode.contains(point: Offset): Boolean =
     point.x in offset.x..(offset.x + size.width) && point.y in offset.y..(offset.y + size.height)
 
-private fun PlusButtonArea.contains(point: Offset): Boolean {
+private fun MindMapAddChildAction.hitTest(point: Offset): Boolean {
     val dx = point.x - center.x
     val dy = point.y - center.y
-    return sqrt(dx * dx + dy * dy) <= radius
-}
-
-private fun MindMapLayoutNode.plusButtonArea(style: MindMapStyle, density: Float): PlusButtonArea {
-    val radius = style.addButtonRadius.value * density
-    val cx = offset.x + size.width / 2f
-    val cy = offset.y + size.height + radius + style.addButtonSpacing.value * density
-    return PlusButtonArea(node.id, Offset(cx, cy), radius + style.addButtonTouchPadding.value * density)
+    return sqrt(dx * dx + dy * dy) <= touchRadius
 }

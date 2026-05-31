@@ -24,6 +24,9 @@ fun <T> PayloadMindMapCanvas(
     nodeSize: (MindMapNodeWithPayload<T>) -> DpSize = { style.defaultNodeSize },
     canvasNodeRenderer: MindMapCanvasNodeRenderer = DefaultMindMapCanvasNodeRenderer,
     edgeRenderer: MindMapEdgeRenderer = CurvedMindMapEdgeRenderer,
+    editPolicy: MindMapEditPolicy = DefaultMindMapEditPolicy,
+    addChildActionLayout: MindMapAddChildActionLayout = DefaultMindMapAddChildActionLayout,
+    editDecorationRenderer: MindMapEditDecorationRenderer? = null,
     nodeContent: (@Composable (MindMapNodeWithPayload<T>, MindMapNodeVisualState) -> Unit)? = null,
     onValidationError: (MindMapValidationResult.Invalid) -> Unit = {},
     onNodeClick: (nodeId: String) -> Unit = {},
@@ -45,6 +48,9 @@ fun <T> PayloadMindMapCanvas(
         nodeSize = { node -> nodeSize(payloadById.getValue(node.id)) },
         canvasNodeRenderer = canvasNodeRenderer,
         edgeRenderer = edgeRenderer,
+        editPolicy = editPolicy,
+        addChildActionLayout = addChildActionLayout,
+        editDecorationRenderer = editDecorationRenderer,
         nodeContent = nodeContent?.let { content ->
             { node, visualState -> content(payloadById.getValue(node.id), visualState) }
         },
