@@ -59,6 +59,7 @@ fun MindMapCanvas(
     nodeSize: (MindMapNode) -> DpSize = { style.defaultNodeSize },
     canvasNodeRenderer: MindMapCanvasNodeRenderer = DefaultMindMapCanvasNodeRenderer,
     edgeRenderer: MindMapEdgeRenderer = CurvedMindMapEdgeRenderer,
+    collapsedNodeIds: Set<String> = emptySet(),
     editPolicy: MindMapEditPolicy = DefaultMindMapEditPolicy,
     addChildActionLayout: MindMapAddChildActionLayout = DefaultMindMapAddChildActionLayout,
     editDecorationRenderer: MindMapEditDecorationRenderer? = null,
@@ -71,10 +72,14 @@ fun MindMapCanvas(
     onNodeMove: (nodeId: String, newParentId: String) -> Unit = { _, _ -> },
 ) {
     val density = LocalDensity.current
-    val validation = remember(nodes) { validateMindMapNodes(nodes) }
-    val layoutResult = remember(nodes, style, nodeSize, validation, layoutEngine) {
+    val visibleNodes = remember(nodes, collapsedNodeIds) {
+        nodes.withoutCollapsedSubtrees(collapsedNodeIds)
+    }
+    val childNodeIds = remember(nodes) { nodes.mapNotNullTo(mutableSetOf()) { it.parentId } }
+    val validation = remember(visibleNodes) { validateMindMapNodes(visibleNodes) }
+    val layoutResult = remember(visibleNodes, style, nodeSize, validation, layoutEngine) {
         if (validation is MindMapValidationResult.Valid) {
-            layoutEngine.layout(MindMapLayoutInput(nodes, style, density, nodeSize))
+            layoutEngine.layout(MindMapLayoutInput(visibleNodes, style, density, nodeSize))
         } else {
             MindMapLayoutResult()
         }
@@ -120,7 +125,7 @@ fun MindMapCanvas(
             .fillMaxSize()
             .onSizeChanged { canvasSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .transformable(transformableState)
-            .pointerInput(layoutedNodes, editMode, selectedNodeId, behavior, editPolicy) {
+            .pointerInput(layoutedNodes, editMode, selectedNodeId, behavior, editPolicy, collapsedNodeIds) {
                 val touchSlop = viewConfiguration.touchSlop
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -205,7 +210,7 @@ fun MindMapCanvas(
                     with(edgeRenderer) { draw(edge, style) }
                 }
                 layoutedNodes.forEach { layouted ->
-                    val visualState = layouted.visualState(state, selectedNodeId)
+                    val visualState = layouted.visualState(state, selectedNodeId, childNodeIds, collapsedNodeIds)
                     if (nodeContent == null) {
                         with(canvasNodeRenderer) {
                             draw(layouted.node, layouted.offset, layouted.size, visualState, style, textMeasurer)
@@ -260,7 +265,7 @@ fun MindMapCanvas(
                                 height = with(density) { layouted.size.height.toDp() },
                             ),
                     ) {
-                        nodeContent(layouted.node, layouted.visualState(state, selectedNodeId))
+                        nodeContent(layouted.node, layouted.visualState(state, selectedNodeId, childNodeIds, collapsedNodeIds))
                     }
                 }
 
@@ -292,14 +297,34 @@ fun MindMapCanvas(
 private fun MindMapLayoutNode.visualState(
     state: MindMapCanvasState,
     selectedNodeId: String?,
+    childNodeIds: Set<String>,
+    collapsedNodeIds: Set<String>,
 ): MindMapNodeVisualState = MindMapNodeVisualState(
     isSelected = node.id == selectedNodeId,
     isDragging = node.id == state.dragging?.nodeId,
     isDropTarget = node.id == state.dragging?.dropTargetId,
+    hasChildren = node.id in childNodeIds,
+    isCollapsed = node.id in collapsedNodeIds,
 )
 
 private fun MindMapLayoutNode.contains(point: Offset): Boolean =
     point.x in offset.x..(offset.x + size.width) && point.y in offset.y..(offset.y + size.height)
+
+private fun List<MindMapNode>.withoutCollapsedSubtrees(collapsedNodeIds: Set<String>): List<MindMapNode> {
+    if (collapsedNodeIds.isEmpty()) return this
+    val nodeIds = mapTo(mutableSetOf()) { it.id }
+    val validCollapsed = collapsedNodeIds.filter { it in nodeIds }
+    if (validCollapsed.isEmpty()) return this
+    val childrenMap = groupBy { it.parentId }
+    val excluded = mutableSetOf<String>()
+    val queue = ArrayDeque<String>()
+    for (id in validCollapsed) childrenMap[id].orEmpty().forEach { queue.add(it.id) }
+    while (queue.isNotEmpty()) {
+        val id = queue.removeFirst()
+        if (excluded.add(id)) childrenMap[id].orEmpty().forEach { queue.add(it.id) }
+    }
+    return filter { it.id !in excluded }
+}
 
 private fun MindMapAddChildAction.hitTest(point: Offset): Boolean {
     val dx = point.x - center.x

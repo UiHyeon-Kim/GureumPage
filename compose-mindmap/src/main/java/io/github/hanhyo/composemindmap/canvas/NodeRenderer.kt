@@ -19,6 +19,8 @@ data class MindMapNodeVisualState(
     val isDragging: Boolean = false,
     val isDropTarget: Boolean = false,
     val isDragGhost: Boolean = false,
+    val hasChildren: Boolean = false,
+    val isCollapsed: Boolean = false,
 )
 
 fun interface MindMapCanvasNodeRenderer {
