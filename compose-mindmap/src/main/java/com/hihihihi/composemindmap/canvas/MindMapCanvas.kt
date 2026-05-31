@@ -18,10 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -31,7 +28,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
-import com.hihihihi.composemindmap.layout.MindMapLayoutEdge
 import com.hihihihi.composemindmap.layout.MindMapLayoutEngine
 import com.hihihihi.composemindmap.layout.MindMapLayoutInput
 import com.hihihihi.composemindmap.layout.MindMapLayoutNode
@@ -61,6 +57,7 @@ fun MindMapCanvas(
     layoutEngine: MindMapLayoutEngine = TopDownTreeLayoutEngine,
     nodeSize: (MindMapNode) -> DpSize = { style.defaultNodeSize },
     canvasNodeRenderer: MindMapCanvasNodeRenderer = DefaultMindMapCanvasNodeRenderer,
+    edgeRenderer: MindMapEdgeRenderer = CurvedMindMapEdgeRenderer,
     nodeContent: (@Composable (MindMapNode, MindMapNodeVisualState) -> Unit)? = null,
     onValidationError: (MindMapValidationResult.Invalid) -> Unit = {},
     onNodeClick: (nodeId: String) -> Unit = {},
@@ -200,7 +197,9 @@ fun MindMapCanvas(
                 scale(state.scale, state.scale, pivot = Offset.Zero)
                 translate(state.offset.x / state.scale, state.offset.y / state.scale)
             }) {
-                drawEdges(layoutResult.edges, style)
+                layoutResult.edges.forEach { edge ->
+                    with(edgeRenderer) { draw(edge, style) }
+                }
                 layoutedNodes.forEach { layouted ->
                     val visualState = layouted.visualState(state, selectedNodeId)
                     if (nodeContent == null) {
@@ -278,21 +277,6 @@ fun MindMapCanvas(
                 }
             }
         }
-    }
-}
-
-private fun DrawScope.drawEdges(edges: List<MindMapLayoutEdge>, style: MindMapStyle) {
-    edges.forEach { edge ->
-        val startX = edge.start.x
-        val startY = edge.start.y
-        val endX = edge.end.x
-        val endY = edge.end.y
-        val midY = (startY + endY) / 2f
-        val path = Path().apply {
-            moveTo(startX, startY)
-            cubicTo(startX, midY, endX, midY, endX, endY)
-        }
-        drawPath(path, color = style.edgeColor, style = Stroke(width = style.edgeStrokeWidth.toPx()))
     }
 }
 

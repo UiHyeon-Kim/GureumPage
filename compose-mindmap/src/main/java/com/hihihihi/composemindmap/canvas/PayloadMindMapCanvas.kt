@@ -23,6 +23,7 @@ fun <T> PayloadMindMapCanvas(
     layoutEngine: MindMapLayoutEngine = TopDownTreeLayoutEngine,
     nodeSize: (MindMapNodeWithPayload<T>) -> DpSize = { style.defaultNodeSize },
     canvasNodeRenderer: MindMapCanvasNodeRenderer = DefaultMindMapCanvasNodeRenderer,
+    edgeRenderer: MindMapEdgeRenderer = CurvedMindMapEdgeRenderer,
     nodeContent: (@Composable (MindMapNodeWithPayload<T>, MindMapNodeVisualState) -> Unit)? = null,
     onValidationError: (MindMapValidationResult.Invalid) -> Unit = {},
     onNodeClick: (nodeId: String) -> Unit = {},
@@ -43,6 +44,7 @@ fun <T> PayloadMindMapCanvas(
         layoutEngine = layoutEngine,
         nodeSize = { node -> nodeSize(payloadById.getValue(node.id)) },
         canvasNodeRenderer = canvasNodeRenderer,
+        edgeRenderer = edgeRenderer,
         nodeContent = nodeContent?.let { content ->
             { node, visualState -> content(payloadById.getValue(node.id), visualState) }
         },

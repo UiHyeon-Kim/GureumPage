@@ -17,6 +17,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 class MindMapCanvasInstrumentedTest {
 
@@ -96,6 +97,22 @@ class MindMapCanvasInstrumentedTest {
         }
 
         composeRule.onNodeWithTag("typed").assertIsDisplayed()
+    }
+
+    @Test
+    fun customEdgeRenderer_isInvoked() {
+        val drawCount = AtomicInteger()
+        composeRule.setContent {
+            MindMapCanvas(
+                nodes = listOf(
+                    MindMapNode(id = "root", title = "Root"),
+                    MindMapNode(id = "child", title = "Child", parentId = "root"),
+                ),
+                edgeRenderer = MindMapEdgeRenderer { _, _ -> drawCount.incrementAndGet() },
+            )
+        }
+
+        composeRule.waitUntil { drawCount.get() > 0 }
     }
 
     private data class SamplePayload(val label: String)
