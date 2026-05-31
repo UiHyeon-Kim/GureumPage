@@ -55,6 +55,9 @@ coreSplashscreen = "1.2.0"
 ossLicensesPlugin = "0.11.0"
 playServicesOssLicenses = "17.5.0"
 
+# Compose MindMap
+composeMindmap = "0.1.0"
+
 # Test
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -69,6 +72,9 @@ androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lif
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
+
+# Compose MindMap
+compose-mindmap = { group = "com.github.UiHyeon-Kim", name = "compose-mindmap", version.ref = "composeMindmap" }
 
 # Compose
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }

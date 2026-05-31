@@ -47,7 +47,7 @@ kotlin {
 dependencies {
     // CA
     implementation(project(":domain"))
-    implementation(project(":compose-mindmap"))
+    implementation(libs.compose.mindmap)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
