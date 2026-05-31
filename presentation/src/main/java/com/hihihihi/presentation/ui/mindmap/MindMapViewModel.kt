@@ -140,6 +140,11 @@ class MindMapViewModel @Inject constructor(
             is MindMapEvent.NodeLongPressed -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
                 if (content.editMode) {
+                    val node = content.nodes.firstOrNull { it.id == event.nodeId } ?: return
+                    if (!canDeleteMindMapNode(node)) {
+                        showRootNodeDeletionBlockedToast()
+                        return
+                    }
                     viewModelScope.launch { _effect.send(MindMapEffect.ShowDeleteConfirm(event.nodeId)) }
                 }
             }
@@ -169,6 +174,10 @@ class MindMapViewModel @Inject constructor(
             is MindMapEvent.DeleteNode -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
                 val target = content.nodes.firstOrNull { it.id == event.nodeId } ?: return
+                if (!canDeleteMindMapNode(target)) {
+                    showRootNodeDeletionBlockedToast()
+                    return
+                }
                 val subtree = controller.collectSubtree(content.nodes, event.nodeId)
                 commitNodes(controller.deleteNode(content.nodes, target, subtree))
             }
@@ -211,6 +220,12 @@ class MindMapViewModel @Inject constructor(
         currentDomainNodes = nodes.map { it.toDomain(mindmapId, userId) }
         updateContent {
             it.copy(nodes = nodes, canUndo = controller.canUndo, canRedo = controller.canRedo)
+        }
+    }
+
+    private fun showRootNodeDeletionBlockedToast() {
+        viewModelScope.launch {
+            _effect.send(MindMapEffect.ShowToast("루트 노드는 삭제할 수 없습니다"))
         }
     }
 

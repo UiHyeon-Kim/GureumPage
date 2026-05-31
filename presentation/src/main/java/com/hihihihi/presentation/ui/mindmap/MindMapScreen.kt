@@ -131,7 +131,11 @@ fun MindMapScreen(
                     pendingParentId = null
                     showEditSheet = true
                 },
-                onDelete = { deleteTargetId = selectedId },
+                onDelete = if (canDeleteMindMapNode(selectedNode)) {
+                    { deleteTargetId = selectedId }
+                } else {
+                    null
+                },
             )
         }
     }
@@ -194,7 +198,7 @@ fun MindMapScreen(
 @Composable
 private fun NodeOverlayToolbar(
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
+    onDelete: (() -> Unit)?,
 ) {
     val colors = GureumTheme.colors
     Box(modifier = Modifier.fillMaxSize()) {
@@ -210,8 +214,10 @@ private fun NodeOverlayToolbar(
                 TextButton(onClick = onEdit) {
                     Text("수정", color = colors.primary, fontWeight = FontWeight.Medium)
                 }
-                TextButton(onClick = onDelete) {
-                    Text("삭제", color = colors.systemRed, fontWeight = FontWeight.Medium)
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) {
+                        Text("삭제", color = colors.systemRed, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
         }
