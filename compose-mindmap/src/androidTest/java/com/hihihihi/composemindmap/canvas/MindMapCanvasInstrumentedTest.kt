@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import com.hihihihi.composemindmap.model.MindMapNode
 import com.hihihihi.composemindmap.model.MindMapValidationResult
+import com.hihihihi.composemindmap.model.withPayload
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -77,4 +78,25 @@ class MindMapCanvasInstrumentedTest {
         composeRule.onNodeWithTag("root-1").assertDoesNotExist()
         composeRule.onNodeWithTag("root-2").assertDoesNotExist()
     }
+
+    @Test
+    fun payloadCanvas_passesTypedPayloadToSlot() {
+        composeRule.setContent {
+            PayloadMindMapCanvas(
+                nodes = listOf(
+                    MindMapNode(id = "root", title = "Root").withPayload(SamplePayload(label = "typed")),
+                ),
+                nodeContent = { wrapped, _ ->
+                    Text(
+                        text = wrapped.payload.label,
+                        modifier = Modifier.testTag(wrapped.payload.label),
+                    )
+                },
+            )
+        }
+
+        composeRule.onNodeWithTag("typed").assertIsDisplayed()
+    }
+
+    private data class SamplePayload(val label: String)
 }
