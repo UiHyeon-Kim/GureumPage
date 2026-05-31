@@ -28,6 +28,7 @@ fun <T> PayloadMindMapCanvas(
     editPolicy: MindMapEditPolicy = DefaultMindMapEditPolicy,
     addChildActionLayout: MindMapAddChildActionLayout = DefaultMindMapAddChildActionLayout,
     editDecorationRenderer: MindMapEditDecorationRenderer? = null,
+    semanticLabelProvider: MindMapSemanticLabelProvider = DefaultMindMapSemanticLabelProvider,
     nodeContent: (@Composable (MindMapNodeWithPayload<T>, MindMapNodeVisualState) -> Unit)? = null,
     onValidationError: (MindMapValidationResult.Invalid) -> Unit = {},
     onNodeClick: (nodeId: String) -> Unit = {},
@@ -53,6 +54,7 @@ fun <T> PayloadMindMapCanvas(
         editPolicy = editPolicy,
         addChildActionLayout = addChildActionLayout,
         editDecorationRenderer = editDecorationRenderer,
+        semanticLabelProvider = semanticLabelProvider,
         nodeContent = nodeContent?.let { content ->
             { node, visualState -> content(payloadById.getValue(node.id), visualState) }
         },

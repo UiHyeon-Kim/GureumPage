@@ -25,6 +25,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
@@ -63,6 +69,7 @@ fun MindMapCanvas(
     editPolicy: MindMapEditPolicy = DefaultMindMapEditPolicy,
     addChildActionLayout: MindMapAddChildActionLayout = DefaultMindMapAddChildActionLayout,
     editDecorationRenderer: MindMapEditDecorationRenderer? = null,
+    semanticLabelProvider: MindMapSemanticLabelProvider = DefaultMindMapSemanticLabelProvider,
     nodeContent: (@Composable (MindMapNode, MindMapNodeVisualState) -> Unit)? = null,
     onValidationError: (MindMapValidationResult.Invalid) -> Unit = {},
     onNodeClick: (nodeId: String) -> Unit = {},
@@ -206,10 +213,19 @@ fun MindMapCanvas(
                 scale(state.scale, state.scale, pivot = Offset.Zero)
                 translate(state.offset.x / state.scale, state.offset.y / state.scale)
             }) {
+                val visLeft = -state.offset.x / state.scale
+                val visTop = -state.offset.y / state.scale
+                val visRight = (canvasSize.width - state.offset.x) / state.scale
+                val visBottom = (canvasSize.height - state.offset.y) / state.scale
                 layoutResult.edges.forEach { edge ->
                     with(edgeRenderer) { draw(edge, style) }
                 }
                 layoutedNodes.forEach { layouted ->
+                    if (layouted.offset.x + layouted.size.width < visLeft ||
+                        layouted.offset.x > visRight ||
+                        layouted.offset.y + layouted.size.height < visTop ||
+                        layouted.offset.y > visBottom
+                    ) return@forEach
                     val visualState = layouted.visualState(state, selectedNodeId, childNodeIds, collapsedNodeIds)
                     if (nodeContent == null) {
                         with(canvasNodeRenderer) {
@@ -242,19 +258,57 @@ fun MindMapCanvas(
             }
         }
 
+        val slotTransformModifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                translationX = state.offset.x
+                translationY = state.offset.y
+                scaleX = state.scale
+                scaleY = state.scale
+                transformOrigin = TransformOrigin(0f, 0f)
+            }
+
+        Box(slotTransformModifier) {
+            layoutedNodes.forEach { layouted ->
+                val visState = layouted.visualState(state, selectedNodeId, childNodeIds, collapsedNodeIds)
+                Box(
+                    Modifier
+                        .offset {
+                            IntOffset(layouted.offset.x.roundToInt(), layouted.offset.y.roundToInt())
+                        }
+                        .size(
+                            width = with(density) { layouted.size.width.toDp() },
+                            height = with(density) { layouted.size.height.toDp() },
+                        )
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = semanticLabelProvider.label(layouted.node)
+                            onClick(label = "선택") { onNodeClick(layouted.node.id); true }
+                            onLongClick(label = "길게 누르기") { onNodeLongClick(layouted.node.id); true }
+                            if (editMode && behavior.addChildButtonsVisible && editPolicy.canAddChild(layouted.node)) {
+                                customActions = listOf(
+                                    CustomAccessibilityAction(
+                                        label = "자식 노드 추가",
+                                        action = { onAddChildClick(layouted.node.id); true },
+                                    )
+                                )
+                            }
+                        },
+                )
+            }
+        }
+
         if (nodeContent != null) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = state.offset.x
-                        translationY = state.offset.y
-                        scaleX = state.scale
-                        scaleY = state.scale
-                        transformOrigin = TransformOrigin(0f, 0f)
-                    },
-            ) {
+            Box(slotTransformModifier) {
                 layoutedNodes.forEach { layouted ->
+                    val visLeft = -state.offset.x / state.scale
+                    val visTop = -state.offset.y / state.scale
+                    val visRight = (canvasSize.width - state.offset.x) / state.scale
+                    val visBottom = (canvasSize.height - state.offset.y) / state.scale
+                    if (layouted.offset.x + layouted.size.width < visLeft ||
+                        layouted.offset.x > visRight ||
+                        layouted.offset.y + layouted.size.height < visTop ||
+                        layouted.offset.y > visBottom
+                    ) return@forEach
                     Box(
                         Modifier
                             .offset {
