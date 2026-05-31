@@ -324,7 +324,7 @@ private fun MindMapSuccessContent(
                 onToggleEdit = { checked ->
                     onEvent(if (checked) MindMapEvent.StartEdit else MindMapEvent.EndEdit)
                 },
-                onCenter = { canvasState.center() },
+                onCenter = { canvasState.centerRoot() },
                 onUndo = { onEvent(MindMapEvent.Undo) },
                 onRedo = { onEvent(MindMapEvent.Redo) },
             )

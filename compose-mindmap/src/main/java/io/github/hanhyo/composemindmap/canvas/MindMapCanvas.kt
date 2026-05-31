@@ -34,6 +34,7 @@ import io.github.hanhyo.composemindmap.layout.MindMapLayoutNode
 import io.github.hanhyo.composemindmap.layout.MindMapLayoutResult
 import io.github.hanhyo.composemindmap.layout.MindMapRootAlignment
 import io.github.hanhyo.composemindmap.layout.TopDownTreeLayoutEngine
+import io.github.hanhyo.composemindmap.model.InitialViewportPolicy
 import io.github.hanhyo.composemindmap.model.MindMapBehavior
 import io.github.hanhyo.composemindmap.model.MindMapNode
 import io.github.hanhyo.composemindmap.model.MindMapStyle
@@ -90,29 +91,22 @@ fun MindMapCanvas(
     LaunchedEffect(validation) {
         if (validation is MindMapValidationResult.Invalid) onValidationError(validation)
     }
-    LaunchedEffect(canvasSize, state.centerVersion, layoutedNodes.isNotEmpty(), layoutEngine) {
-        val shouldCenter = state.centerVersion > 0 ||
-            (behavior.autoCenterOnFirstLayout && (!initiallyCentered || centeredLayoutEngine !== layoutEngine))
-        if (shouldCenter && canvasSize.width > 0 && layoutedNodes.isNotEmpty()) {
-            val root = layoutedNodes.firstOrNull { it.node.parentId == null } ?: return@LaunchedEffect
-            val rootCenter = Offset(root.offset.x + root.size.width / 2f, root.offset.y + root.size.height / 2f)
-            state.offset = when (layoutEngine.rootAlignment) {
-                MindMapRootAlignment.TOP_CENTER -> Offset(
-                    x = canvasSize.width / 2f - rootCenter.x * state.scale,
-                    y = with(density) { behavior.centerTopPadding.toPx() },
-                )
-                MindMapRootAlignment.CENTER_START -> Offset(
-                    x = with(density) { behavior.centerStartPadding.toPx() },
-                    y = canvasSize.height / 2f - rootCenter.y * state.scale,
-                )
-                MindMapRootAlignment.CENTER -> Offset(
-                    x = canvasSize.width / 2f - rootCenter.x * state.scale,
-                    y = canvasSize.height / 2f - rootCenter.y * state.scale,
-                )
-            }
-            initiallyCentered = true
-            centeredLayoutEngine = layoutEngine
-        }
+    LaunchedEffect(canvasSize, state.commandVersion, layoutedNodes.isNotEmpty(), layoutEngine) {
+        if (canvasSize.width <= 0 || layoutedNodes.isEmpty()) return@LaunchedEffect
+        val command = state.pendingCommand
+        val applyInitialPolicy = !initiallyCentered || centeredLayoutEngine !== layoutEngine
+        if (command == null && !applyInitialPolicy) return@LaunchedEffect
+
+        val effectiveCommand = command ?: when (behavior.initialViewportPolicy) {
+            InitialViewportPolicy.ROOT_ALIGNED -> ViewportCommand.CenterRoot
+            InitialViewportPolicy.FIT_CONTENT -> ViewportCommand.FitContent(behavior.fitContentPadding)
+            InitialViewportPolicy.NONE -> null
+        } ?: return@LaunchedEffect
+
+        applyViewportCommand(effectiveCommand, layoutedNodes, layoutEngine, canvasSize, state, behavior, density)
+        initiallyCentered = true
+        centeredLayoutEngine = layoutEngine
+        state.pendingCommand = null
     }
 
     val transformableState = rememberTransformableState { zoomChange, _, _ ->
@@ -311,4 +305,65 @@ private fun MindMapAddChildAction.hitTest(point: Offset): Boolean {
     val dx = point.x - center.x
     val dy = point.y - center.y
     return sqrt(dx * dx + dy * dy) <= touchRadius
+}
+
+private fun applyViewportCommand(
+    command: ViewportCommand,
+    layoutedNodes: List<MindMapLayoutNode>,
+    layoutEngine: MindMapLayoutEngine,
+    canvasSize: Size,
+    state: MindMapCanvasState,
+    behavior: MindMapBehavior,
+    density: androidx.compose.ui.unit.Density,
+) {
+    when (command) {
+        is ViewportCommand.CenterRoot -> {
+            val root = layoutedNodes.firstOrNull { it.node.parentId == null } ?: return
+            val rootCenter = Offset(root.offset.x + root.size.width / 2f, root.offset.y + root.size.height / 2f)
+            state.offset = when (layoutEngine.rootAlignment) {
+                MindMapRootAlignment.TOP_CENTER -> Offset(
+                    x = canvasSize.width / 2f - rootCenter.x * state.scale,
+                    y = with(density) { behavior.centerTopPadding.toPx() },
+                )
+                MindMapRootAlignment.CENTER_START -> Offset(
+                    x = with(density) { behavior.centerStartPadding.toPx() },
+                    y = canvasSize.height / 2f - rootCenter.y * state.scale,
+                )
+                MindMapRootAlignment.CENTER -> Offset(
+                    x = canvasSize.width / 2f - rootCenter.x * state.scale,
+                    y = canvasSize.height / 2f - rootCenter.y * state.scale,
+                )
+            }
+        }
+        is ViewportCommand.FitContent -> {
+            val padPx = with(density) { command.padding.toPx() }
+            val minX = layoutedNodes.minOf { it.offset.x }
+            val minY = layoutedNodes.minOf { it.offset.y }
+            val maxX = layoutedNodes.maxOf { it.offset.x + it.size.width }
+            val maxY = layoutedNodes.maxOf { it.offset.y + it.size.height }
+            val contentW = maxX - minX
+            val contentH = maxY - minY
+            if (contentW <= 0 || contentH <= 0) return
+            val availableW = canvasSize.width - padPx * 2
+            val availableH = canvasSize.height - padPx * 2
+            val newScale = (minOf(availableW / contentW, availableH / contentH))
+                .coerceIn(behavior.minScale, behavior.maxScale)
+            state.scale = newScale
+            state.offset = Offset(
+                x = canvasSize.width / 2f - (minX + contentW / 2f) * newScale,
+                y = canvasSize.height / 2f - (minY + contentH / 2f) * newScale,
+            )
+        }
+        is ViewportCommand.FocusNode -> {
+            val target = layoutedNodes.firstOrNull { it.node.id == command.nodeId } ?: return
+            val nodeCenter = Offset(
+                target.offset.x + target.size.width / 2f,
+                target.offset.y + target.size.height / 2f,
+            )
+            state.offset = Offset(
+                x = canvasSize.width / 2f - nodeCenter.x * state.scale,
+                y = canvasSize.height / 2f - nodeCenter.y * state.scale,
+            )
+        }
+    }
 }
