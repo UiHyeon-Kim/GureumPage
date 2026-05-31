@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "GureumPage"
 include(":app")
+include(":compose-mindmap")
 include(":presentation")
 include(":domain")
 include(":data")
