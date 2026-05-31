@@ -61,12 +61,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hihihihi.presentation.R
 import com.hihihihi.presentation.designsystem.theme.GureumPageTheme
 import com.hihihihi.presentation.designsystem.theme.GureumTheme
-import com.hihihihi.composemindmap.canvas.MindMapCanvas
-import com.hihihihi.composemindmap.canvas.MindMapCanvasState
-import com.hihihihi.composemindmap.canvas.MindMapNodeVisualState
-import com.hihihihi.composemindmap.canvas.rememberMindMapCanvasState
-import com.hihihihi.composemindmap.model.MindMapNode
-import com.hihihihi.composemindmap.model.MindMapStyle
+import io.github.hanhyo.composemindmap.canvas.MindMapCanvasState
+import io.github.hanhyo.composemindmap.canvas.MindMapNodeVisualState
+import io.github.hanhyo.composemindmap.canvas.PayloadMindMapCanvas
+import io.github.hanhyo.composemindmap.canvas.rememberMindMapCanvasState
+import io.github.hanhyo.composemindmap.model.MindMapNode
+import io.github.hanhyo.composemindmap.model.MindMapNodeWithPayload
+import io.github.hanhyo.composemindmap.model.MindMapStyle
 import com.hihihihi.presentation.designsystem.components.BookCoverImage
 import com.hihihihi.presentation.ui.mindmap.sheet.NodeDetailBottomSheet
 import com.hihihihi.presentation.ui.mindmap.sheet.NodeEditBottomSheet
@@ -122,7 +123,7 @@ fun MindMapScreen(
     val content = uiState as? MindMapUiState.Content
     val selectedId = content?.selectedNodeId
     if (content != null && content.editMode && selectedId != null) {
-        val selectedNode = content.nodes.firstOrNull { it.id == selectedId }
+        val selectedNode = content.nodes.firstOrNull { it.node.id == selectedId }?.node
         if (selectedNode != null) {
             NodeOverlayToolbar(
                 onEdit = {
@@ -341,7 +342,7 @@ private fun MindMapSuccessContent(
             }
         },
     ) { paddingValues ->
-        MindMapCanvas(
+        PayloadMindMapCanvas(
             nodes = content.nodes,
             state = canvasState,
             style = style,
@@ -351,15 +352,15 @@ private fun MindMapSuccessContent(
                 .navigationBarsPadding(),
             selectedNodeId = content.selectedNodeId,
             editMode = content.editMode,
-            nodeSize = { node ->
-                if (node.parentId == null && !node.imageUrl.isNullOrBlank()) {
+            nodeSize = { item ->
+                if (item.node.parentId == null && !item.payload.bookImage.isNullOrBlank()) {
                     DpSize(width = 112.dp, height = 148.dp)
                 } else {
                     DpSize(width = style.nodeWidth, height = style.nodeHeight)
                 }
             },
-            nodeContent = { node, visualState ->
-                GureumMindMapNode(node = node, visualState = visualState)
+            nodeContent = { item, visualState ->
+                GureumMindMapNode(node = item.node, payload = item.payload, visualState = visualState)
             },
             onNodeClick = { onEvent(MindMapEvent.NodeTapped(it)) },
             onNodeLongClick = { onEvent(MindMapEvent.NodeLongPressed(it)) },
@@ -373,6 +374,7 @@ private fun MindMapSuccessContent(
 @Composable
 private fun GureumMindMapNode(
     node: MindMapNode,
+    payload: GureumMindMapPayload,
     visualState: MindMapNodeVisualState,
 ) {
     val colors = GureumTheme.colors
@@ -388,7 +390,7 @@ private fun GureumMindMapNode(
     }
     val shape = RoundedCornerShape(12.dp)
 
-    if (node.parentId == null && !node.imageUrl.isNullOrBlank()) {
+    if (node.parentId == null && !payload.bookImage.isNullOrBlank()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -401,7 +403,7 @@ private fun GureumMindMapNode(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             BookCoverImage(
-                imageUrl = node.imageUrl,
+                imageUrl = payload.bookImage,
                 modifier = Modifier
                     .size(width = 72.dp, height = 96.dp)
                     .clip(RoundedCornerShape(8.dp)),
@@ -533,10 +535,10 @@ private fun MindMapLoadingPreview() {
 @Composable
 private fun MindMapWithNodesPreview() {
     val sampleNodes = listOf(
-        MindMapNode(id = "root", title = "데미안", subtitle = "헤르만 헤세", parentId = null),
-        MindMapNode(id = "c1", title = "싱클레어", subtitle = "주인공", parentId = "root"),
-        MindMapNode(id = "c2", title = "데미안", subtitle = "인도자", parentId = "root"),
-        MindMapNode(id = "c3", title = "에바 부인", subtitle = "구원", parentId = "c1"),
+        MindMapNodeWithPayload(MindMapNode(id = "root", title = "데미안", subtitle = "헤르만 헤세"), GureumMindMapPayload(null)),
+        MindMapNodeWithPayload(MindMapNode(id = "c1", title = "싱클레어", subtitle = "주인공", parentId = "root"), GureumMindMapPayload(null)),
+        MindMapNodeWithPayload(MindMapNode(id = "c2", title = "데미안", subtitle = "인도자", parentId = "root"), GureumMindMapPayload(null)),
+        MindMapNodeWithPayload(MindMapNode(id = "c3", title = "에바 부인", subtitle = "구원", parentId = "c1"), GureumMindMapPayload(null)),
     )
     GureumPageTheme {
         MindMapContent(
@@ -551,9 +553,9 @@ private fun MindMapWithNodesPreview() {
 @Composable
 private fun MindMapEditModePreview() {
     val sampleNodes = listOf(
-        MindMapNode(id = "root", title = "데미안", parentId = null, icon = "📚"),
-        MindMapNode(id = "c1", title = "싱클레어", parentId = "root"),
-        MindMapNode(id = "c2", title = "데미안", parentId = "root"),
+        MindMapNodeWithPayload(MindMapNode(id = "root", title = "데미안", icon = "📚"), GureumMindMapPayload(null)),
+        MindMapNodeWithPayload(MindMapNode(id = "c1", title = "싱클레어", parentId = "root"), GureumMindMapPayload(null)),
+        MindMapNodeWithPayload(MindMapNode(id = "c2", title = "데미안", parentId = "root"), GureumMindMapPayload(null)),
     )
     GureumPageTheme {
         MindMapContent(

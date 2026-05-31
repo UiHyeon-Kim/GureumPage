@@ -4,8 +4,9 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hihihihi.composemindmap.controller.MindMapEditController
-import com.hihihihi.composemindmap.model.MindMapNode
+import io.github.hanhyo.composemindmap.controller.MindMapEditController
+import io.github.hanhyo.composemindmap.model.MindMapNode
+import io.github.hanhyo.composemindmap.model.MindMapNodeWithPayload
 import com.hihihihi.domain.model.MindmapNode
 import com.hihihihi.domain.operation.NodeEditOperation
 import com.hihihihi.domain.usecase.mindmapnode.ApplyNodeOperation
@@ -31,7 +32,7 @@ sealed interface MindMapUiState {
 
     @Immutable
     data class Content(
-        val nodes: List<MindMapNode> = emptyList(),
+        val nodes: List<MindMapNodeWithPayload<GureumMindMapPayload>> = emptyList(),
         val editMode: Boolean = false,
         val selectedNodeId: String? = null,
         val canUndo: Boolean = false,
@@ -98,6 +99,7 @@ class MindMapViewModel @Inject constructor(
     private var userId: String = ""
     private var baselineDomain: List<MindmapNode> = emptyList()
     private var currentDomainNodes: List<MindmapNode> = emptyList()
+    private var payloadByNodeId: Map<String, GureumMindMapPayload> = emptyMap()
     private var saving = false
 
     fun load(mindmapId: String) {
@@ -106,6 +108,7 @@ class MindMapViewModel @Inject constructor(
             observeMindmapNodeUseCase(mindmapId).collect { nodes ->
                 if (userId.isEmpty() && nodes.isNotEmpty()) userId = nodes.first().userId
                 currentDomainNodes = nodes
+                payloadByNodeId = nodes.associate { it.mindmapNodeId to GureumMindMapPayload(it.bookImage) }
                 val editMode = (_uiState.value as? MindMapUiState.Content)?.editMode ?: false
                 if (!editMode && !saving) {
                     updateContent { it.copy(nodes = nodes.map { n -> n.toLibraryModel() }) }
@@ -130,7 +133,7 @@ class MindMapViewModel @Inject constructor(
                 val content = _uiState.value as? MindMapUiState.Content ?: return
                 updateContent { it.copy(selectedNodeId = event.nodeId) }
                 if (!content.editMode) {
-                    val node = content.nodes.firstOrNull { it.id == event.nodeId }
+                    val node = content.nodes.firstOrNull { it.node.id == event.nodeId }?.node
                     if (node != null) {
                         viewModelScope.launch { _effect.send(MindMapEffect.ShowNodeDetail(node)) }
                     }
@@ -140,7 +143,7 @@ class MindMapViewModel @Inject constructor(
             is MindMapEvent.NodeLongPressed -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
                 if (content.editMode) {
-                    val node = content.nodes.firstOrNull { it.id == event.nodeId } ?: return
+                    val node = content.nodes.firstOrNull { it.node.id == event.nodeId }?.node ?: return
                     if (!canDeleteMindMapNode(node)) {
                         showRootNodeDeletionBlockedToast()
                         return
@@ -158,47 +161,47 @@ class MindMapViewModel @Inject constructor(
                     color = event.color,
                 )
                 val content = _uiState.value as? MindMapUiState.Content ?: return
-                commitNodes(controller.addNode(content.nodes, newNode))
+                commitNodes(controller.addNode(content.plainNodes, newNode))
             }
             is MindMapEvent.UpdateNode -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
-                val before = content.nodes.firstOrNull { it.id == event.nodeId } ?: return
+                val before = content.plainNodes.firstOrNull { it.id == event.nodeId } ?: return
                 val after = before.copy(
                     title = event.title,
                     subtitle = event.subtitle,
                     icon = event.icon,
                     color = event.color,
                 )
-                commitNodes(controller.updateNode(content.nodes, before, after))
+                commitNodes(controller.updateNode(content.plainNodes, before, after))
             }
             is MindMapEvent.DeleteNode -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
-                val target = content.nodes.firstOrNull { it.id == event.nodeId } ?: return
+                val target = content.plainNodes.firstOrNull { it.id == event.nodeId } ?: return
                 if (!canDeleteMindMapNode(target)) {
                     showRootNodeDeletionBlockedToast()
                     return
                 }
-                val subtree = controller.collectSubtree(content.nodes, event.nodeId)
-                commitNodes(controller.deleteNode(content.nodes, target, subtree))
+                val subtree = controller.collectSubtree(content.plainNodes, event.nodeId)
+                commitNodes(controller.deleteNode(content.plainNodes, target, subtree))
             }
             MindMapEvent.Undo -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
-                val newNodes = controller.undo(content.nodes) ?: return
+                val newNodes = controller.undo(content.plainNodes) ?: return
                 commitNodes(newNodes)
             }
             MindMapEvent.Redo -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
-                val newNodes = controller.redo(content.nodes) ?: return
+                val newNodes = controller.redo(content.plainNodes) ?: return
                 commitNodes(newNodes)
             }
             is MindMapEvent.MoveNode -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
-                if (controller.isCyclic(content.nodes, event.nodeId, event.newParentId)) {
+                if (controller.isCyclic(content.plainNodes, event.nodeId, event.newParentId)) {
                     viewModelScope.launch { _effect.send(MindMapEffect.ShowToast("이동할 수 없습니다")) }
                     return
                 }
-                val moved = controller.moveNode(content.nodes, event.nodeId, event.newParentId)
-                if (moved == content.nodes) {
+                val moved = controller.moveNode(content.plainNodes, event.nodeId, event.newParentId)
+                if (moved == content.plainNodes) {
                     viewModelScope.launch { _effect.send(MindMapEffect.ShowToast("이동할 수 없습니다")) }
                     return
                 }
@@ -207,7 +210,7 @@ class MindMapViewModel @Inject constructor(
             MindMapEvent.ShowAddSheet -> {
                 val content = _uiState.value as? MindMapUiState.Content ?: return
                 val parentId = content.selectedNodeId
-                    ?: content.nodes.firstOrNull { it.parentId == null }?.id
+                    ?: content.nodes.firstOrNull { it.node.parentId == null }?.node?.id
                 viewModelScope.launch { _effect.send(MindMapEffect.ShowNodeEditSheet(null, parentId)) }
             }
             is MindMapEvent.ShowAddChildSheet -> {
@@ -216,10 +219,19 @@ class MindMapViewModel @Inject constructor(
         }
     }
 
+    private val MindMapUiState.Content.plainNodes: List<MindMapNode>
+        get() = nodes.map { it.node }
+
     private fun commitNodes(nodes: List<MindMapNode>) {
-        currentDomainNodes = nodes.map { it.toDomain(mindmapId, userId) }
+        currentDomainNodes = nodes.map { it.toDomain(mindmapId, userId, payloadByNodeId[it.id]?.bookImage) }
         updateContent {
-            it.copy(nodes = nodes, canUndo = controller.canUndo, canRedo = controller.canRedo)
+            it.copy(
+                nodes = nodes.map { node ->
+                    MindMapNodeWithPayload(node, payloadByNodeId[node.id] ?: GureumMindMapPayload(null))
+                },
+                canUndo = controller.canUndo,
+                canRedo = controller.canRedo,
+            )
         }
     }
 

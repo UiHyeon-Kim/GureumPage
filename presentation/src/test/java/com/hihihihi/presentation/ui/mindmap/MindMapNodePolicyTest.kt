@@ -1,6 +1,6 @@
 package com.hihihihi.presentation.ui.mindmap
 
-import com.hihihihi.composemindmap.model.MindMapNode
+import io.github.hanhyo.composemindmap.model.MindMapNode
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

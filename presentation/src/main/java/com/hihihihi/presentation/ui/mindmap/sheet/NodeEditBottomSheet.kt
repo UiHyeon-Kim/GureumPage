@@ -34,7 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hihihihi.presentation.designsystem.theme.GureumTheme
-import com.hihihihi.composemindmap.model.MindMapNode
+import io.github.hanhyo.composemindmap.model.MindMapNode
 
 private val ICON_OPTIONS = listOf(
     "📌", "⭐", "💡", "🔥", "❤️", "✅", "🎯", "📚", "💬", "🌟",
