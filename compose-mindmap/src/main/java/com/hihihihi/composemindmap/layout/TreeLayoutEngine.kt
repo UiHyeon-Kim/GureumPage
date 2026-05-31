@@ -8,32 +8,61 @@ import com.hihihihi.composemindmap.model.MindMapNode
 import com.hihihihi.composemindmap.model.MindMapStyle
 import com.hihihihi.composemindmap.model.defaultNodeSize
 
-internal data class LayoutedNode(
+data class MindMapLayoutInput(
+    val nodes: List<MindMapNode>,
+    val style: MindMapStyle,
+    val density: Density,
+    val nodeSize: (MindMapNode) -> DpSize = { style.defaultNodeSize },
+)
+
+data class MindMapLayoutNode(
     val node: MindMapNode,
     val offset: Offset,
     val size: Size,
 )
 
-internal object TreeLayoutEngine {
+data class MindMapLayoutEdge(
+    val parentId: String,
+    val childId: String,
+    val start: Offset,
+    val end: Offset,
+)
 
-    fun layout(
-        nodes: List<MindMapNode>,
-        style: MindMapStyle,
-        density: Density,
-        nodeSize: (MindMapNode) -> DpSize = { style.defaultNodeSize },
-    ): List<LayoutedNode> {
-        if (nodes.isEmpty()) return emptyList()
-        return with(density) {
+data class MindMapLayoutResult(
+    val nodes: List<MindMapLayoutNode> = emptyList(),
+    val edges: List<MindMapLayoutEdge> = emptyList(),
+)
+
+enum class MindMapRootAlignment {
+    TOP_CENTER,
+    CENTER_START,
+    CENTER,
+}
+
+interface MindMapLayoutEngine {
+    val rootAlignment: MindMapRootAlignment
+
+    fun layout(input: MindMapLayoutInput): MindMapLayoutResult
+}
+
+object TopDownTreeLayoutEngine : MindMapLayoutEngine {
+    override val rootAlignment = MindMapRootAlignment.TOP_CENTER
+
+    override fun layout(input: MindMapLayoutInput): MindMapLayoutResult {
+        if (input.nodes.isEmpty()) return MindMapLayoutResult()
+        return with(input.density) {
+            val nodes = input.nodes
+            val style = input.style
             val hGap = style.horizontalGap.toPx()
             val vGap = style.verticalGap.toPx()
             val sizes = nodes.associate { node ->
-                val size = nodeSize(node)
+                val size = input.nodeSize(node)
                 node.id to Size(size.width.toPx(), size.height.toPx())
             }
 
             val childrenMap: Map<String?, List<MindMapNode>> = nodes.groupBy { it.parentId }
-            val root = childrenMap[null]?.firstOrNull() ?: return@with emptyList()
-            val result = mutableListOf<LayoutedNode>()
+            val root = childrenMap[null]?.firstOrNull() ?: return@with MindMapLayoutResult()
+            val result = mutableListOf<MindMapLayoutNode>()
             val subtreeWidths = mutableMapOf<String, Float>()
 
             fun subtreeWidth(nodeId: String): Float {
@@ -50,7 +79,7 @@ internal object TreeLayoutEngine {
                 val size = sizes.getValue(node.id)
                 val allocated = subtreeWidth(node.id)
                 val nodeX = startX + (allocated - size.width) / 2f
-                result += LayoutedNode(node, Offset(nodeX, y), size)
+                result += MindMapLayoutNode(node, Offset(nodeX, y), size)
 
                 val children = childrenMap[node.id] ?: return
                 val childY = y + size.height + vGap
@@ -62,7 +91,82 @@ internal object TreeLayoutEngine {
             }
 
             place(root, 0f, 0f)
-            result
+            MindMapLayoutResult(
+                nodes = result,
+                edges = result.edges { parent, child ->
+                    Offset(parent.offset.x + parent.size.width / 2f, parent.offset.y + parent.size.height) to
+                        Offset(child.offset.x + child.size.width / 2f, child.offset.y)
+                },
+            )
         }
+    }
+}
+
+object LeftToRightTreeLayoutEngine : MindMapLayoutEngine {
+    override val rootAlignment = MindMapRootAlignment.CENTER_START
+
+    override fun layout(input: MindMapLayoutInput): MindMapLayoutResult {
+        if (input.nodes.isEmpty()) return MindMapLayoutResult()
+        return with(input.density) {
+            val nodes = input.nodes
+            val style = input.style
+            val hGap = style.horizontalGap.toPx()
+            val vGap = style.verticalGap.toPx()
+            val sizes = nodes.associate { node ->
+                val size = input.nodeSize(node)
+                node.id to Size(size.width.toPx(), size.height.toPx())
+            }
+
+            val childrenMap: Map<String?, List<MindMapNode>> = nodes.groupBy { it.parentId }
+            val root = childrenMap[null]?.firstOrNull() ?: return@with MindMapLayoutResult()
+            val result = mutableListOf<MindMapLayoutNode>()
+            val subtreeHeights = mutableMapOf<String, Float>()
+
+            fun subtreeHeight(nodeId: String): Float {
+                subtreeHeights[nodeId]?.let { return it }
+                val nodeHeight = sizes.getValue(nodeId).height
+                val children = childrenMap[nodeId]
+                if (children.isNullOrEmpty()) return nodeHeight.also { subtreeHeights[nodeId] = it }
+                val childrenTotal = children.sumOf { subtreeHeight(it.id).toDouble() }.toFloat()
+                return maxOf(nodeHeight, childrenTotal + vGap * (children.size - 1))
+                    .also { subtreeHeights[nodeId] = it }
+            }
+
+            fun place(node: MindMapNode, x: Float, startY: Float) {
+                val size = sizes.getValue(node.id)
+                val allocated = subtreeHeight(node.id)
+                val nodeY = startY + (allocated - size.height) / 2f
+                result += MindMapLayoutNode(node, Offset(x, nodeY), size)
+
+                val children = childrenMap[node.id] ?: return
+                val childX = x + size.width + hGap
+                var childY = startY
+                for (child in children) {
+                    place(child, childX, childY)
+                    childY += subtreeHeight(child.id) + vGap
+                }
+            }
+
+            place(root, 0f, 0f)
+            MindMapLayoutResult(
+                nodes = result,
+                edges = result.edges { parent, child ->
+                    Offset(parent.offset.x + parent.size.width, parent.offset.y + parent.size.height / 2f) to
+                        Offset(child.offset.x, child.offset.y + child.size.height / 2f)
+                },
+            )
+        }
+    }
+}
+
+private fun List<MindMapLayoutNode>.edges(
+    anchors: (parent: MindMapLayoutNode, child: MindMapLayoutNode) -> Pair<Offset, Offset>,
+): List<MindMapLayoutEdge> {
+    val nodeMap = associateBy { it.node.id }
+    return mapNotNull { child ->
+        val parentId = child.node.parentId ?: return@mapNotNull null
+        val parent = nodeMap[parentId] ?: return@mapNotNull null
+        val (start, end) = anchors(parent, child)
+        MindMapLayoutEdge(parentId = parentId, childId = child.node.id, start = start, end = end)
     }
 }

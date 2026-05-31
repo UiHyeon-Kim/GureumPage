@@ -12,7 +12,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import com.hihihihi.composemindmap.layout.LayoutedNode
+import com.hihihihi.composemindmap.layout.MindMapLayoutNode
 import com.hihihihi.composemindmap.model.MindMapNode
 import com.hihihihi.composemindmap.model.MindMapStyle
 
@@ -121,7 +121,7 @@ object DefaultMindMapCanvasNodeRenderer : MindMapCanvasNodeRenderer {
 
 internal data class PlusButtonArea(val nodeId: String, val center: Offset, val radius: Float)
 
-internal fun DrawScope.drawDropTargetHighlight(layouted: LayoutedNode, style: MindMapStyle) {
+internal fun DrawScope.drawDropTargetHighlight(layouted: MindMapLayoutNode, style: MindMapStyle) {
     drawRoundRect(
         color = style.dropTargetColor,
         topLeft = layouted.offset,
@@ -137,7 +137,7 @@ internal fun DrawScope.drawDropTargetHighlight(layouted: LayoutedNode, style: Mi
 }
 
 internal fun DrawScope.drawPlusButton(
-    layouted: LayoutedNode,
+    layouted: MindMapLayoutNode,
     textMeasurer: TextMeasurer,
     style: MindMapStyle,
 ): PlusButtonArea {

@@ -14,6 +14,7 @@ data class MindMapBehavior(
     val addChildButtonsVisible: Boolean = true,
     val autoCenterOnFirstLayout: Boolean = true,
     val centerTopPadding: Dp = 48.dp,
+    val centerStartPadding: Dp = 48.dp,
 ) {
     init {
         require(minScale > 0f) { "minScale must be greater than zero" }

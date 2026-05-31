@@ -31,8 +31,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
-import com.hihihihi.composemindmap.layout.LayoutedNode
-import com.hihihihi.composemindmap.layout.TreeLayoutEngine
+import com.hihihihi.composemindmap.layout.MindMapLayoutEdge
+import com.hihihihi.composemindmap.layout.MindMapLayoutEngine
+import com.hihihihi.composemindmap.layout.MindMapLayoutInput
+import com.hihihihi.composemindmap.layout.MindMapLayoutNode
+import com.hihihihi.composemindmap.layout.MindMapLayoutResult
+import com.hihihihi.composemindmap.layout.MindMapRootAlignment
+import com.hihihihi.composemindmap.layout.TopDownTreeLayoutEngine
 import com.hihihihi.composemindmap.model.MindMapBehavior
 import com.hihihihi.composemindmap.model.MindMapNode
 import com.hihihihi.composemindmap.model.MindMapStyle
@@ -53,6 +58,7 @@ fun MindMapCanvas(
     behavior: MindMapBehavior = MindMapBehavior(),
     selectedNodeId: String? = null,
     editMode: Boolean = false,
+    layoutEngine: MindMapLayoutEngine = TopDownTreeLayoutEngine,
     nodeSize: (MindMapNode) -> DpSize = { style.defaultNodeSize },
     canvasNodeRenderer: MindMapCanvasNodeRenderer = DefaultMindMapCanvasNodeRenderer,
     nodeContent: (@Composable (MindMapNode, MindMapNodeVisualState) -> Unit)? = null,
@@ -65,29 +71,44 @@ fun MindMapCanvas(
 ) {
     val density = LocalDensity.current
     val validation = remember(nodes) { validateMindMapNodes(nodes) }
-    val layoutedNodes = remember(nodes, style, nodeSize, validation) {
+    val layoutResult = remember(nodes, style, nodeSize, validation, layoutEngine) {
         if (validation is MindMapValidationResult.Valid) {
-            TreeLayoutEngine.layout(nodes, style, density, nodeSize)
+            layoutEngine.layout(MindMapLayoutInput(nodes, style, density, nodeSize))
         } else {
-            emptyList()
+            MindMapLayoutResult()
         }
     }
+    val layoutedNodes = layoutResult.nodes
     val textMeasurer = rememberTextMeasurer()
     var canvasSize by remember { mutableStateOf(Size.Zero) }
     var initiallyCentered by remember { mutableStateOf(false) }
+    var centeredLayoutEngine by remember { mutableStateOf<MindMapLayoutEngine?>(null) }
 
     LaunchedEffect(validation) {
         if (validation is MindMapValidationResult.Invalid) onValidationError(validation)
     }
-    LaunchedEffect(canvasSize, state.centerVersion, layoutedNodes.isNotEmpty()) {
-        val shouldCenter = state.centerVersion > 0 || (behavior.autoCenterOnFirstLayout && !initiallyCentered)
+    LaunchedEffect(canvasSize, state.centerVersion, layoutedNodes.isNotEmpty(), layoutEngine) {
+        val shouldCenter = state.centerVersion > 0 ||
+            (behavior.autoCenterOnFirstLayout && (!initiallyCentered || centeredLayoutEngine !== layoutEngine))
         if (shouldCenter && canvasSize.width > 0 && layoutedNodes.isNotEmpty()) {
             val root = layoutedNodes.firstOrNull { it.node.parentId == null } ?: return@LaunchedEffect
-            state.offset = Offset(
-                x = canvasSize.width / 2f - (root.offset.x + root.size.width / 2f) * state.scale,
-                y = with(density) { behavior.centerTopPadding.toPx() },
-            )
+            val rootCenter = Offset(root.offset.x + root.size.width / 2f, root.offset.y + root.size.height / 2f)
+            state.offset = when (layoutEngine.rootAlignment) {
+                MindMapRootAlignment.TOP_CENTER -> Offset(
+                    x = canvasSize.width / 2f - rootCenter.x * state.scale,
+                    y = with(density) { behavior.centerTopPadding.toPx() },
+                )
+                MindMapRootAlignment.CENTER_START -> Offset(
+                    x = with(density) { behavior.centerStartPadding.toPx() },
+                    y = canvasSize.height / 2f - rootCenter.y * state.scale,
+                )
+                MindMapRootAlignment.CENTER -> Offset(
+                    x = canvasSize.width / 2f - rootCenter.x * state.scale,
+                    y = canvasSize.height / 2f - rootCenter.y * state.scale,
+                )
+            }
             initiallyCentered = true
+            centeredLayoutEngine = layoutEngine
         }
     }
 
@@ -179,7 +200,7 @@ fun MindMapCanvas(
                 scale(state.scale, state.scale, pivot = Offset.Zero)
                 translate(state.offset.x / state.scale, state.offset.y / state.scale)
             }) {
-                drawEdges(layoutedNodes, style)
+                drawEdges(layoutResult.edges, style)
                 layoutedNodes.forEach { layouted ->
                     val visualState = layouted.visualState(state, selectedNodeId)
                     if (nodeContent == null) {
@@ -260,14 +281,12 @@ fun MindMapCanvas(
     }
 }
 
-private fun DrawScope.drawEdges(nodes: List<LayoutedNode>, style: MindMapStyle) {
-    val nodeMap = nodes.associateBy { it.node.id }
-    nodes.filter { it.node.parentId != null }.forEach { child ->
-        val parent = nodeMap[child.node.parentId] ?: return@forEach
-        val startX = parent.offset.x + parent.size.width / 2f
-        val startY = parent.offset.y + parent.size.height
-        val endX = child.offset.x + child.size.width / 2f
-        val endY = child.offset.y
+private fun DrawScope.drawEdges(edges: List<MindMapLayoutEdge>, style: MindMapStyle) {
+    edges.forEach { edge ->
+        val startX = edge.start.x
+        val startY = edge.start.y
+        val endX = edge.end.x
+        val endY = edge.end.y
         val midY = (startY + endY) / 2f
         val path = Path().apply {
             moveTo(startX, startY)
@@ -277,7 +296,7 @@ private fun DrawScope.drawEdges(nodes: List<LayoutedNode>, style: MindMapStyle) 
     }
 }
 
-private fun LayoutedNode.visualState(
+private fun MindMapLayoutNode.visualState(
     state: MindMapCanvasState,
     selectedNodeId: String?,
 ): MindMapNodeVisualState = MindMapNodeVisualState(
@@ -286,7 +305,7 @@ private fun LayoutedNode.visualState(
     isDropTarget = node.id == state.dragging?.dropTargetId,
 )
 
-private fun LayoutedNode.contains(point: Offset): Boolean =
+private fun MindMapLayoutNode.contains(point: Offset): Boolean =
     point.x in offset.x..(offset.x + size.width) && point.y in offset.y..(offset.y + size.height)
 
 private fun PlusButtonArea.contains(point: Offset): Boolean {
@@ -295,7 +314,7 @@ private fun PlusButtonArea.contains(point: Offset): Boolean {
     return sqrt(dx * dx + dy * dy) <= radius
 }
 
-private fun LayoutedNode.plusButtonArea(style: MindMapStyle, density: Float): PlusButtonArea {
+private fun MindMapLayoutNode.plusButtonArea(style: MindMapStyle, density: Float): PlusButtonArea {
     val radius = style.addButtonRadius.value * density
     val cx = offset.x + size.width / 2f
     val cy = offset.y + size.height + radius + style.addButtonSpacing.value * density

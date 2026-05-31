@@ -3,6 +3,8 @@ package com.hihihihi.composemindmap.canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.DpSize
+import com.hihihihi.composemindmap.layout.MindMapLayoutEngine
+import com.hihihihi.composemindmap.layout.TopDownTreeLayoutEngine
 import com.hihihihi.composemindmap.model.MindMapBehavior
 import com.hihihihi.composemindmap.model.MindMapNodeWithPayload
 import com.hihihihi.composemindmap.model.MindMapStyle
@@ -18,6 +20,7 @@ fun <T> PayloadMindMapCanvas(
     behavior: MindMapBehavior = MindMapBehavior(),
     selectedNodeId: String? = null,
     editMode: Boolean = false,
+    layoutEngine: MindMapLayoutEngine = TopDownTreeLayoutEngine,
     nodeSize: (MindMapNodeWithPayload<T>) -> DpSize = { style.defaultNodeSize },
     canvasNodeRenderer: MindMapCanvasNodeRenderer = DefaultMindMapCanvasNodeRenderer,
     nodeContent: (@Composable (MindMapNodeWithPayload<T>, MindMapNodeVisualState) -> Unit)? = null,
@@ -37,6 +40,7 @@ fun <T> PayloadMindMapCanvas(
         behavior = behavior,
         selectedNodeId = selectedNodeId,
         editMode = editMode,
+        layoutEngine = layoutEngine,
         nodeSize = { node -> nodeSize(payloadById.getValue(node.id)) },
         canvasNodeRenderer = canvasNodeRenderer,
         nodeContent = nodeContent?.let { content ->
